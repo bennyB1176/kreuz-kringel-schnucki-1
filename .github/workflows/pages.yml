@@ -34,7 +34,11 @@ jobs:
       - name: Secret-Scan (gitleaks)
         run: scripts/gitleaks.sh
 
+      # enablement richtet GitHub Pages beim ersten Lauf selbst ein,
+      # sodass keine manuelle Einstellung im Repository nötig ist.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
