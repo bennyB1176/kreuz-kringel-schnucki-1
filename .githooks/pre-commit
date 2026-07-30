@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Pre-Commit-Hook: erst Geheimnisse, dann Tests.
+# Aktivieren mit:  git config core.hooksPath .githooks
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+echo "› gitleaks (vorgemerkte Änderungen)"
+"$ROOT/scripts/gitleaks.sh" staged
+
+echo "› Testsuite"
+npm test --silent
+
+echo "✓ Alles sauber."

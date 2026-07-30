@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Testsuite ausführen
+        run: npm test
+
+  secrets:
+    name: Secret Scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # vollständige Historie, damit auch alte Commits geprüft werden
+
+      - name: Selbsttest – der Scanner muss anschlagen
+        run: scripts/gitleaks.sh selftest
+
+      - name: Arbeitsverzeichnis und Historie prüfen
+        run: scripts/gitleaks.sh
+
+      - name: Bericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: .cache/gitleaks-report-*.json
+          if-no-files-found: ignore
+          retention-days: 7

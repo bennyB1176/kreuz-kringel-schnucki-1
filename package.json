@@ -1,0 +1,14 @@
+{
+  "name": "siedler-der-insel",
+  "version": "1.0.0",
+  "description": "Isometrisches Aufbau- und Strategiespiel im Browser – ohne Build-Schritt.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "test:watch": "node --test --watch \"tests/*.test.js\"",
+    "serve": "python3 -m http.server 8000",
+    "scan": "scripts/gitleaks.sh"
+  },
+  "license": "MIT"
+}
