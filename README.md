@@ -58,11 +58,18 @@ manuell speichern, laden, löschen oder ein neues Spiel starten.
 ## Veröffentlichen
 
 Das Repository enthält einen Workflow (`.github/workflows/pages.yml`), der den Projekt-
-Stand bei jedem Push auf `main` als GitHub Page veröffentlicht. Einmalig nötig:
+Stand bei jedem Push auf `main` als GitHub Page veröffentlicht – aber erst, wenn Tests
+und Secret-Scan grün sind.
 
-1. **Settings → Pages → Build and deployment → Source: „GitHub Actions“** wählen.
-2. Auf `main` pushen (oder den Workflow manuell über *Actions → Deploy to GitHub Pages →
-   Run workflow* starten).
+> **Einmalig von Hand nötig:** unter **Settings → Pages → Build and deployment →
+> Source** den Eintrag **„GitHub Actions“** wählen. Ohne diese Einstellung bricht das
+> Deployment mit `Get Pages site failed` ab. Der Workflow kann Pages nicht selbst
+> aktivieren: dem Workflow-Token fehlt das Recht, eine Pages-Site anzulegen
+> (`Resource not accessible by integration`).
+
+Danach genügt ein Push auf `main` oder ein manueller Start über *Actions → Deploy to
+GitHub Pages → Run workflow*. Die Seite erscheint anschließend unter
+`https://<benutzername>.github.io/kreuz-kringel-schnucki-1/`.
 
 Alternativ funktioniert auch „Deploy from a branch“, da alle Dateien statisch im
 Wurzelverzeichnis liegen; die Datei `.nojekyll` verhindert dabei die Jekyll-Verarbeitung.
