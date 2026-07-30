@@ -110,20 +110,38 @@ export class Game {
     return best;
   }
 
-  /** Ziel für Feinde: nächste eigene Einheit oder nächstes Gebäude. */
+  /**
+   * Ziel für Feinde: was direkt vor ihnen steht, sonst die Siedlung.
+   * Ohne den Vorrang der Gebäude jagen Angreifer fliehenden Zivilisten
+   * quer über die Karte hinterher und erreichen die Siedlung nie.
+   */
   pickEnemyTarget(x, y) {
-    let best = null, bestD = Infinity;
+    // Bewusst eng: nur was praktisch im Weg steht, lenkt vom Ziel ab.
+    const NAHBEREICH = 2.5;
+    let nahe = null, naheD = NAHBEREICH;
     for (const u of this.units) {
       if (!u.alive || u.enemy) continue;
       const d = dist(u.x, u.y, x, y);
-      if (d < bestD) { bestD = d; best = u; }
+      if (d < naheD) { naheD = d; nahe = u; }
     }
+    if (nahe) return nahe;
+
+    let gebaeude = null, gebaeudeD = Infinity;
     for (const b of this.buildings) {
       if (!b.alive) continue;
-      const d = dist(b.cx, b.cy, x, y) * 1.15; // Einheiten leicht bevorzugen
-      if (d < bestD) { bestD = d; best = b; }
+      const d = dist(b.cx, b.cy, x, y);
+      if (d < gebaeudeD) { gebaeudeD = d; gebaeude = b; }
     }
-    return best;
+    if (gebaeude) return gebaeude;
+
+    // Keine Gebäude mehr – dann eben die nächste Einheit, egal wie weit.
+    let fern = null, fernD = Infinity;
+    for (const u of this.units) {
+      if (!u.alive || u.enemy) continue;
+      const d = dist(u.x, u.y, x, y);
+      if (d < fernD) { fernD = d; fern = u; }
+    }
+    return fern;
   }
 
   findNearestStorage(x, y) {
@@ -218,6 +236,9 @@ export class Game {
     for (const [tx, ty] of b.tiles()) this.world.occupied.delete(this.world.key(tx, ty));
     for (const id of b.workers) { const u = this.getUnit(id); if (u) { u.workplace = null; u.work = { phase: 'idle', nodeKey: null, timer: 0 }; } }
     b.hp = 0;
+    // laufende Ausbildungen voll erstatten, das Gebäude selbst zur Hälfte
+    for (const job of b.trainQueue) this.refund(UNITS[job.unit].cost, 1);
+    b.trainQueue = [];
     this.refund(BUILDINGS[b.type].cost, 0.5);
     this.buildings = this.buildings.filter((x) => x !== b);
     if (this.selection?.kind === 'building' && this.selection.id === b.id) this.selection = null;
@@ -475,6 +496,13 @@ export class Game {
     }
     this.units = this.units.filter((u) => u.alive || u.isHero);
     this.buildings = this.buildings.filter((b) => b.alive);
+
+    // Geht Lagerraum verloren (zerstörtes Lagerhaus), verfällt der Überschuss.
+    const cap = this.storageCap;
+    for (const res of Object.keys(this.resources)) {
+      if (this.resources[res] > cap) this.resources[res] = cap;
+    }
+
     if (!this.buildings.length && !this.gameOverNotified) {
       this.gameOverNotified = true;
       this.emit('toast', 'Alle Gebäude verloren! Baue neu auf.');

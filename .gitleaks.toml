@@ -1,0 +1,31 @@
+# gitleaks-Konfiguration für "Siedler der Insel"
+#
+# Das Projekt ist eine rein statische Browser-Anwendung ohne Server, Konten oder
+# API-Zugänge. Es darf daher grundsätzlich kein Geheimnis im Repository liegen –
+# jeder Fund ist ein echter Fund und bricht den Build.
+
+title = "Siedler der Insel – Secret Scanning"
+
+# Alle eingebauten Regeln von gitleaks übernehmen.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Bekannte, unkritische Fundstellen"
+
+# Binärartige bzw. generierte Inhalte, in denen zufällige Zeichenketten
+# fälschlich als Schlüssel erkannt werden können.
+paths = [
+  '''(^|/)\.git/''',
+  '''(^|/)node_modules/''',
+  '''\.png$''',
+  '''\.jpg$''',
+  '''\.webp$''',
+  '''\.woff2?$''',
+]
+
+# Data-URIs (SVG-Icons in index.html und im Web-Manifest) enthalten lange
+# base64-/prozentkodierte Zeichenketten ohne jeden Geheimnischarakter.
+regexes = [
+  '''data:image/svg\+xml[^"'\s]*''',
+]

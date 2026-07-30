@@ -119,17 +119,19 @@ export const BUILDINGS = {
    Einheiten
    --------------------------------------------------------------- */
 export const UNITS = {
+  /* Nahkampfreichweiten liegen über √2, damit auch diagonal angrenzende
+     Ziele – etwa die Ecke eines mehrfeldrigen Gebäudes – erreichbar sind. */
   held: {
-    id: 'held', name: 'Held', icon: '🦸', hp: 140, speed: 3.4, damage: 12, range: 1.1,
+    id: 'held', name: 'Held', icon: '🦸', hp: 140, speed: 3.4, damage: 12, range: 1.5,
     attackRate: 0.9, gatherRate: 1.6, carry: 12, color: '#4a90e2', pop: 0,
   },
   siedler: {
-    id: 'siedler', name: 'Siedler', icon: '🧍', hp: 60, speed: 2.4, damage: 3, range: 1.0,
+    id: 'siedler', name: 'Siedler', icon: '🧍', hp: 60, speed: 2.4, damage: 3, range: 1.5,
     attackRate: 1.4, gatherRate: 1.0, carry: 8, color: '#d9b382', pop: 1,
     cost: { holz: 10, nahrung: 20 }, trainTime: 6,
   },
   ritter: {
-    id: 'ritter', name: 'Ritter', icon: '⚔️', hp: 180, speed: 2.3, damage: 16, range: 1.2,
+    id: 'ritter', name: 'Ritter', icon: '⚔️', hp: 180, speed: 2.3, damage: 16, range: 1.5,
     attackRate: 1.0, color: '#c3ccd6', pop: 1,
     cost: { quader: 10, werkzeug: 4, nahrung: 30 }, trainTime: 12,
   },
@@ -139,11 +141,11 @@ export const UNITS = {
     cost: { bretter: 10, werkzeug: 3, nahrung: 25 }, trainTime: 10,
   },
   raeuber: {
-    id: 'raeuber', name: 'Räuber', icon: '🪖', hp: 70, speed: 2.2, damage: 8, range: 1.1,
+    id: 'raeuber', name: 'Räuber', icon: '🪖', hp: 70, speed: 2.2, damage: 8, range: 1.5,
     attackRate: 1.1, color: '#a5504a', pop: 0, enemy: true,
   },
   raeuberboss: {
-    id: 'raeuberboss', name: 'Räuberhauptmann', icon: '💀', hp: 220, speed: 2.0, damage: 18, range: 1.2,
+    id: 'raeuberboss', name: 'Räuberhauptmann', icon: '💀', hp: 220, speed: 2.0, damage: 18, range: 1.6,
     attackRate: 1.0, color: '#7e2f2f', pop: 0, enemy: true,
   },
 };

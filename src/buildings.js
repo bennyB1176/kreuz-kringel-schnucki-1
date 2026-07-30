@@ -63,9 +63,17 @@ export class Building {
     const def = this.def;
     const active = this.workers.filter((id) => {
       const u = game.getUnit(id);
-      return u && u.alive && u.atTile(this.cx, this.cy, 1.2 + this.size * 0.5);
+      return u && u.alive && u.atBuilding(this);
     }).length;
-    if (active === 0) { this.prodActive = false; return; }
+    if (active === 0) {
+      // Bereits eingesetzte Rohstoffe zurückgeben, statt sie verfallen zu lassen.
+      if (this.prodActive) {
+        for (const [res, amt] of Object.entries(def.produce.in)) game.addResource(res, amt);
+        this.prodActive = false;
+        this.prodTimer = 0;
+      }
+      return;
+    }
 
     if (!this.prodActive) {
       if (!game.canAfford(def.produce.in)) { this.prodActive = false; return; }

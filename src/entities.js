@@ -6,6 +6,22 @@ import { nextId, dist } from './utils.js';
 
 const AGGRO_RANGE = 6;
 const REPATH_COOLDOWN = 0.6;
+/** Reicht, um ein diagonal angrenzendes Feld (√2) zu erreichen. */
+const CONTACT = 1.5;
+
+/**
+ * Abstand zu einem Ziel: bei Gebäuden zur nächstgelegenen belegten Kachel,
+ * bei Einheiten zum Mittelpunkt. Ohne das messen mehrfeldrige Gebäude vom
+ * Zentrum aus – Einheiten bleiben dann außerhalb ihrer eigenen Reichweite stehen.
+ */
+export function distanceTo(x, y, target) {
+  if (target.size) {
+    const bx = Math.max(target.x, Math.min(x, target.x + target.size - 1));
+    const by = Math.max(target.y, Math.min(y, target.y + target.size - 1));
+    return Math.hypot(x - bx, y - by);
+  }
+  return Math.hypot(x - target.x, y - target.y);
+}
 
 export class Unit {
   constructor(type, x, y) {
@@ -47,7 +63,9 @@ export class Unit {
     ty = Math.max(0, Math.min(game.world.h - 1, Math.round(ty)));
     const p = findPath(game.world, Math.round(this.x), Math.round(this.y), tx, ty);
     if (p === null) { this.path = null; return false; }
-    this.path = p;
+    // Ein leerer Weg bedeutet „schon da“ – als null merken, sonst gilt die
+    // Einheit dauerhaft als unterwegs und bleibt stehen.
+    this.path = p.length ? p : null;
     this.pathGoal = { x: tx, y: ty };
     return true;
   }
@@ -72,6 +90,9 @@ export class Unit {
   }
 
   atTile(tx, ty, tol = 1.45) { return dist(this.x, this.y, tx, ty) <= tol; }
+
+  /** Steht die Einheit direkt an diesem Gebäude? */
+  atBuilding(b, tol = CONTACT) { return distanceTo(this.x, this.y, b) <= tol; }
 
   /* ------------------------------------------------------------ */
   /* Hauptupdate                                                   */
@@ -105,7 +126,7 @@ export class Unit {
     const target = game.getEntity(this.order.targetId);
     if (!target || !target.alive) { this.order = { type: 'idle' }; return; }
     const tp = targetPoint(target);
-    const d = dist(this.x, this.y, tp.x, tp.y) - (target.size ? target.size / 2 : 0);
+    const d = distanceTo(this.x, this.y, target);
     if (d <= this.def.range) {
       this.path = null;
       this.tryAttack(game, target);
@@ -161,7 +182,7 @@ export class Unit {
     const store = game.getBuilding(this.deliverTarget) || game.findNearestStorage(this.x, this.y);
     if (!store) { this.order = { type: 'idle' }; return; }
     this.deliverTarget = store.id;
-    if (this.atTile(store.cx, store.cy, 0.9 + store.size * 0.6)) {
+    if (this.atBuilding(store)) {
       this.path = null;
       this.deliverIfFull(game);
       const back = this.order.backTo && game.world.nodes.get(this.order.backTo);
@@ -198,7 +219,7 @@ export class Unit {
 
     if (def.job === 'produce') {
       // Arbeiter steht im Gebäude – Produktion läuft dort
-      if (!this.atTile(b.cx, b.cy, 1.2 + def.size * 0.5)) {
+      if (!this.atBuilding(b)) {
         if (!this.path && this.repathTimer <= 0) {
           this.repathTimer = 1.0;
           this.moveTo(game, b.cx, b.cy);
@@ -261,7 +282,7 @@ export class Unit {
         const store = game.getBuilding(w.storeId) || game.findNearestStorage(this.x, this.y);
         if (!store) { w.phase = 'seek'; return; }
         w.storeId = store.id;
-        if (this.atTile(store.cx, store.cy, 0.9 + store.size * 0.6)) {
+        if (this.atBuilding(store)) {
           this.path = null;
           this.deliverIfFull(game);
           w.phase = 'seek';
@@ -292,13 +313,19 @@ export class Unit {
 
   autoDefend(dt, game) {
     if (!(this.isSoldier || this.isHero)) {
-      // Zivilisten fliehen vor nahen Feinden
+      // Zivilisten fliehen vor nahen Feinden – bevorzugt heim zur Siedlung,
+      // damit sie in den Schutz von Türmen und Soldaten laufen statt ins Freie.
       const threat = game.nearestEnemyTo(this.x, this.y, 3.5);
       if (threat && !this.path && this.repathTimer <= 0) {
         this.repathTimer = 1.2;
-        const ax = this.x + (this.x - threat.x) * 2;
-        const ay = this.y + (this.y - threat.y) * 2;
-        this.moveTo(game, ax, ay);
+        const heim = game.findNearestStorage(this.x, this.y);
+        if (heim && dist(this.x, this.y, heim.cx, heim.cy) > 2.5) {
+          this.moveTo(game, heim.cx, heim.cy);
+        } else {
+          const ax = this.x + (this.x - threat.x) * 2;
+          const ay = this.y + (this.y - threat.y) * 2;
+          this.moveTo(game, ax, ay);
+        }
       }
       this.followPath(dt);
       return;
@@ -336,19 +363,22 @@ export class Unit {
   /* ------------------------------------------------------------ */
 
   updateEnemy(dt, game) {
+    this.retargetTimer = (this.retargetTimer ?? 0) - dt;
     let target = game.getEntity(this.aiTargetId);
-    if (!target || !target.alive) {
-      target = game.pickEnemyTarget(this.x, this.y);
-      this.aiTargetId = target ? target.id : null;
-      this.path = null;
+    // Regelmäßig neu bewerten, damit Angreifer auf herannahende Verteidiger reagieren.
+    if (!target || !target.alive || this.retargetTimer <= 0) {
+      this.retargetTimer = 2.5;
+      const neu = game.pickEnemyTarget(this.x, this.y);
+      if (!neu || neu.id !== this.aiTargetId) this.path = null;
+      target = neu;
+      this.aiTargetId = neu ? neu.id : null;
     }
     if (!target) { this.followPath(dt); return; }
 
     const tp = targetPoint(target);
-    const reach = this.def.range + (target.size ? target.size * 0.5 : 0);
-    const d = dist(this.x, this.y, tp.x, tp.y);
+    const d = distanceTo(this.x, this.y, target);
 
-    if (d <= reach) {
+    if (d <= this.def.range) {
       this.path = null;
       this.tryAttack(game, target);
     } else if (!this.path && this.repathTimer <= 0) {

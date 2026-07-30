@@ -63,6 +63,7 @@ export class MinHeap {
   }
   pop() {
     const it = this.items;
+    if (!it.length) return undefined;
     const top = it[0];
     const last = it.pop();
     if (it.length) {

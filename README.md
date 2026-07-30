@@ -67,6 +67,54 @@ Stand bei jedem Push auf `main` als GitHub Page veröffentlicht. Einmalig nötig
 Alternativ funktioniert auch „Deploy from a branch“, da alle Dateien statisch im
 Wurzelverzeichnis liegen; die Datei `.nojekyll` verhindert dabei die Jekyll-Verarbeitung.
 
+## Entwicklung (testgetrieben)
+
+Die Spiellogik ist vollständig von der Darstellung getrennt und wird testgetrieben
+entwickelt: Erst beschreibt ein Test das gewünschte Verhalten, dann folgt der Code.
+Die Suite läuft mit dem eingebauten Testrunner von Node – ohne jede Abhängigkeit.
+
+```bash
+npm test          # gesamte Suite (rund 110 Tests, < 1 s)
+npm run test:watch
+npm run scan      # Secret-Scan über Arbeitsverzeichnis und Git-Historie
+npm run serve     # lokaler Webserver auf http://localhost:8000
+```
+
+Getestet werden Wegfindung, Kartengenerierung, Wirtschaft, Arbeiter-KI, Produktion,
+Kampf, Angriffswellen und das Speicherformat. Die DOM-nahen Module (`render.js`,
+`input.js`, `ui.js`, `main.js`) werden statisch auf Syntax geprüft; ihr Zusammenspiel
+deckt der manuelle Durchlauf im Browser ab.
+
+Beispiele für Fehler, die diese Suite aufgedeckt hat: Einheiten maßen den Abstand zu
+mehrfeldrigen Gebäuden vom Mittelpunkt statt zur nächsten Kachel und blieben dadurch
+2,12 Felder vor einem Lager mit 2,1 Feldern Toleranz stehen; ein leerer Weg galt als
+„noch unterwegs“; und eingesetzte Rohstoffe verfielen, wenn ein Arbeiter die
+Produktion mittendrin verließ.
+
+## Sicherheit: Secret Scanning mit gitleaks
+
+Das Projekt braucht keinerlei Zugangsdaten – deshalb ist jeder Fund ein echter Fund.
+[gitleaks](https://github.com/gitleaks/gitleaks) prüft Arbeitsverzeichnis **und**
+Git-Historie; die Konfiguration liegt in `.gitleaks.toml` und übernimmt die
+Standardregeln.
+
+* `npm run scan` – vollständiger Scan (lädt gitleaks bei Bedarf nach `.cache/`)
+* `scripts/gitleaks.sh staged` – nur vorgemerkte Änderungen
+* `scripts/gitleaks.sh selftest` – legt zur Laufzeit ein Testgeheimnis außerhalb des
+  Repositories an und erwartet einen Treffer. Damit kann der Scan nicht unbemerkt
+  wirkungslos werden – genau das war er zwischenzeitlich, weil gitleaks eine bekannte
+  Beispiel-Zeichenkette bewusst ignoriert.
+
+Optionaler Hook vor jedem Commit (Secret-Scan + Tests):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+In der CI (`.github/workflows/ci.yml`) laufen Testsuite und Secret-Scan bei jedem Push
+und jedem Pull Request; die Veröffentlichung auf GitHub Pages startet erst, wenn beides
+grün ist.
+
 ## Projektstruktur
 
 ```
@@ -87,6 +135,9 @@ src/
   pathfind.js           A*-Wegfindung
   save.js               localStorage-Spielstände
   utils.js              Zufall, Rauschen, Heap, Mathe
+tests/                  Testsuite (node:test), Logik ohne DOM
+scripts/gitleaks.sh     Secret-Scan für lokal und CI
+.githooks/pre-commit    optionaler Hook: Scan + Tests vor jedem Commit
 ```
 
 Keine externen Bibliotheken, keine Build-Tools – alle Grafiken werden zur Laufzeit auf
